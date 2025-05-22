@@ -134,5 +134,141 @@
             "fade_in": 20,
             "fade_out": 500
         }
+    ],
+    "Dreamy": [
+        {
+            "enable": true,
+            "volume": 40,
+            "duration": 3000,
+            "delay": 100,
+            "fade_in": 800,
+            "fade_out": 1500
+        },
+        {
+            "enable": false,
+            "volume": 0,
+            "duration": 1000,
+            "delay": 0,
+            "fade_in": 200,
+            "fade_out": 500
+        },
+        {
+            "enable": true,
+            "volume": 15,
+            "duration": 2500,
+            "delay": 50,
+            "fade_in": 600,
+            "fade_out": 1200
+        },
+        {
+            "enable": true,
+            "volume": 25,
+            "duration": 3500,
+            "delay": 200,
+            "fade_in": 1000,
+            "fade_out": 1800
+        }
+    ],
+    "Aggressive": [
+        {
+            "enable": true,
+            "volume": 70,
+            "duration": 500,
+            "delay": 0,
+            "fade_in": 5,
+            "fade_out": 100
+        },
+        {
+            "enable": true,
+            "volume": 60,
+            "duration": 400,
+            "delay": 0,
+            "fade_in": 2,
+            "fade_out": 50
+        },
+        {
+            "enable": true,
+            "volume": 50,
+            "duration": 450,
+            "delay": 0,
+            "fade_in": 3,
+            "fade_out": 75
+        },
+        {
+            "enable": true,
+            "volume": 40,
+            "duration": 600,
+            "delay": 0,
+            "fade_in": 10,
+            "fade_out": 150
+        }
+    ],
+    "Melancholic": [
+        {
+            "enable": true,
+            "volume": 35,
+            "duration": 2500,
+            "delay": 50,
+            "fade_in": 600,
+            "fade_out": 1200
+        },
+        {
+            "enable": false,
+            "volume": 0,
+            "duration": 1000,
+            "delay": 0,
+            "fade_in": 200,
+            "fade_out": 500
+        },
+        {
+            "enable": true,
+            "volume": 20,
+            "duration": 2800,
+            "delay": 100,
+            "fade_in": 700,
+            "fade_out": 1400
+        },
+        {
+            "enable": true,
+            "volume": 25,
+            "duration": 3000,
+            "delay": 150,
+            "fade_in": 800,
+            "fade_out": 1500
+        }
+    ],
+    "Energetic": [
+        {
+            "enable": true,
+            "volume": 55,
+            "duration": 800,
+            "delay": 0,
+            "fade_in": 20,
+            "fade_out": 300
+        },
+        {
+            "enable": true,
+            "volume": 40,
+            "duration": 600,
+            "delay": 10,
+            "fade_in": 15,
+            "fade_out": 200
+        },
+        {
+            "enable": true,
+            "volume": 45,
+            "duration": 700,
+            "delay": 5,
+            "fade_in": 10,
+            "fade_out": 250
+        },
+        {
+            "enable": true,
+            "volume": 50,
+            "duration": 900,
+            "delay": 15,
+            "fade_in": 25,
+            "fade_out": 350
+        }
     ]
 }
