@@ -1,0 +1,138 @@
+{
+    "Default": [
+        {
+            "enable": true,
+            "volume": 46,
+            "duration": 1282,
+            "delay": 43,
+            "fade_in": 232,
+            "fade_out": 1211
+        },
+        {
+            "enable": true,
+            "volume": 2,
+            "duration": 2418,
+            "delay": 251,
+            "fade_in": 772,
+            "fade_out": 500
+        },
+        {
+            "enable": true,
+            "volume": 4,
+            "duration": 2439,
+            "delay": 105,
+            "fade_in": 286,
+            "fade_out": 1488
+        },
+        {
+            "enable": true,
+            "volume": 25,
+            "duration": 3471,
+            "delay": 939,
+            "fade_in": 438,
+            "fade_out": 1089
+        }
+    ],
+    "Bright": [
+        {
+            "enable": true,
+            "volume": 60,
+            "duration": 1000,
+            "delay": 0,
+            "fade_in": 50,
+            "fade_out": 200
+        },
+        {
+            "enable": true,
+            "volume": 15,
+            "duration": 800,
+            "delay": 50,
+            "fade_in": 100,
+            "fade_out": 300
+        },
+        {
+            "enable": true,
+            "volume": 20,
+            "duration": 900,
+            "delay": 25,
+            "fade_in": 75,
+            "fade_out": 250
+        },
+        {
+            "enable": true,
+            "volume": 40,
+            "duration": 1200,
+            "delay": 10,
+            "fade_in": 150,
+            "fade_out": 400
+        }
+    ],
+    "Soft": [
+        {
+            "enable": true,
+            "volume": 50,
+            "duration": 2000,
+            "delay": 0,
+            "fade_in": 500,
+            "fade_out": 1000
+        },
+        {
+            "enable": false,
+            "volume": 0,
+            "duration": 1000,
+            "delay": 0,
+            "fade_in": 200,
+            "fade_out": 500
+        },
+        {
+            "enable": false,
+            "volume": 0,
+            "duration": 1000,
+            "delay": 0,
+            "fade_in": 200,
+            "fade_out": 500
+        },
+        {
+            "enable": true,
+            "volume": 30,
+            "duration": 2500,
+            "delay": 100,
+            "fade_in": 600,
+            "fade_out": 1200
+        }
+    ],
+    "Punchy": [
+        {
+            "enable": true,
+            "volume": 30,
+            "duration": 800,
+            "delay": 0,
+            "fade_in": 10,
+            "fade_out": 400
+        },
+        {
+            "enable": true,
+            "volume": 25,
+            "duration": 600,
+            "delay": 0,
+            "fade_in": 5,
+            "fade_out": 200
+        },
+        {
+            "enable": true,
+            "volume": 20,
+            "duration": 700,
+            "delay": 0,
+            "fade_in": 5,
+            "fade_out": 300
+        },
+        {
+            "enable": true,
+            "volume": 15,
+            "duration": 900,
+            "delay": 0,
+            "fade_in": 20,
+            "fade_out": 500
+        }
+    ]
+}
