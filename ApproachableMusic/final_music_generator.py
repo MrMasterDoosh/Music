@@ -21,7 +21,7 @@ from utils.audio_utils import (NOTES, MODES, WAVEFORMS, DEFAULT_OCTAVE,
                               get_frequency, generate_waveform)
 from ui.theme import MATERIAL_COLORS, APP_STYLE, FONT_FAMILY, FONT_SIZES
 from ui.components import (MaterialCard, ModernSlider, ModernDial,
-                          ModernCheckBox, ModernRotaryDial)
+                          ModernCheckBox, CircleOfFifthsWidget)
 from ui.spectrum_analyzer import SpectrumAnalyzer
 from ui.waveform_visualizer import WaveformVisualizer # Import the new visualizer
 from presets import PresetManager, DEFAULT_PRESET
@@ -246,14 +246,24 @@ class MusicGeneratorApp(QMainWindow):
         left_panel = MaterialCard()
         left_layout = QVBoxLayout(left_panel)
 
-        # Root note selection
-        root_group = QGroupBox("Root Note")
-        root_layout = QVBoxLayout(root_group)
+        # Circle of fifths selection
+        tonality_group = QGroupBox("Tonality")
+        tonality_layout = QVBoxLayout(tonality_group)
 
-        # Prepare items for root_dial
-        root_note_items = [{'name': note, 'quality': ''} for note in NOTES] # Using 'name' key like modes
-        self.root_dial = ModernRotaryDial(root_note_items, item_type="Mode") # Treat as Mode for display logic
-        root_layout.addWidget(self.root_dial, alignment=Qt.AlignCenter)
+        self.circle_widget = CircleOfFifthsWidget(NOTES, MODES)
+        tonality_layout.addWidget(self.circle_widget, alignment=Qt.AlignCenter)
+
+        selection_row = QHBoxLayout()
+        self.root_selection_label = QLabel()
+        self.mode_selection_label = QLabel()
+        root_display = self.circle_widget.get_root_name() or (NOTES[0] if NOTES else "")
+        mode_display = self.circle_widget.get_mode_name() or (MODES[0] if MODES else "")
+        self.root_selection_label.setText(f"Root: {root_display}")
+        self.mode_selection_label.setText(f"Mode: {mode_display}")
+        selection_row.addWidget(self.root_selection_label)
+        selection_row.addStretch()
+        selection_row.addWidget(self.mode_selection_label)
+        tonality_layout.addLayout(selection_row)
 
         # Octave selection
         octave_layout = QHBoxLayout()
@@ -281,32 +291,9 @@ class MusicGeneratorApp(QMainWindow):
             }
         """)
         octave_layout.addWidget(self.octave_spin)
-        root_layout.addLayout(octave_layout)
+        tonality_layout.addLayout(octave_layout)
 
-        left_layout.addWidget(root_group)
-
-        # Mode selection
-        mode_group = QGroupBox("Mode")
-        mode_layout = QVBoxLayout(mode_group)
-
-        # Prepare items for mode_dial
-        # Associate a general quality for potential future styling, though not strictly used for color now
-        mode_items = []
-        for mode_name in MODES:
-            # Basic quality association (can be refined)
-            quality_equivalent = "Neutral" 
-            if "ionian" in mode_name.lower() or "lydian" in mode_name.lower():
-                quality_equivalent = "Major Eq."
-            elif "dorian" in mode_name.lower() or "phrygian" in mode_name.lower() or "aeolian" in mode_name.lower() or "minor" in mode_name.lower():
-                quality_equivalent = "Minor Eq."
-            elif "locrian" in mode_name.lower():
-                quality_equivalent = "Diminished Eq."
-            mode_items.append({'name': mode_name, 'quality': quality_equivalent})
-
-        self.mode_dial = ModernRotaryDial(mode_items, item_type="Mode")
-        mode_layout.addWidget(self.mode_dial, alignment=Qt.AlignCenter)
-
-        left_layout.addWidget(mode_group)
+        left_layout.addWidget(tonality_group)
 
         controls_layout.addWidget(left_panel, 1)
 
@@ -638,8 +625,8 @@ class MusicGeneratorApp(QMainWindow):
         self.update_chord_labels()
 
         # Connect signals
-        self.root_dial.currentIndexChanged.connect(self.update_chord_labels) # Changed signal
-        self.mode_dial.currentIndexChanged.connect(self.update_chord_labels) # Changed signal
+        self.circle_widget.rootChanged.connect(self.update_chord_labels)
+        self.circle_widget.modeChanged.connect(self.update_chord_labels)
         self.octave_spin.valueChanged.connect(self.update_chord_labels)
 
         # Load default preset
@@ -862,10 +849,12 @@ class MusicGeneratorApp(QMainWindow):
 
 
     def update_chord_labels(self):
-        root_note_index = self.root_dial.get_index() # Changed to get_index()
+        root_note_index = self.circle_widget.get_root_index()
         root_note_name = NOTES[root_note_index]
-        mode_index = self.mode_dial.get_index() # Changed to get_index()
+        mode_index = self.circle_widget.get_mode_index()
         mode_name = MODES[mode_index]
+        self.root_selection_label.setText(f"Root: {root_note_name}")
+        self.mode_selection_label.setText(f"Mode: {mode_name}")
         octave = self.octave_spin.value()
 
         intervals = MODE_INTERVALS[mode_name]
@@ -1009,8 +998,8 @@ class MusicGeneratorApp(QMainWindow):
             # print("Playback thread finished.")
 
     def play_chord(self, chord_index, octave_offset=0): # Added octave_offset parameter
-        root_note_idx = self.root_dial.get_index() # Changed to get_index()
-        mode_name = MODES[self.mode_dial.get_index()] # Changed to get_index()
+        root_note_idx = self.circle_widget.get_root_index()
+        mode_name = MODES[self.circle_widget.get_mode_index()]
         base_octave = self.octave_spin.value()
         effective_octave = base_octave + octave_offset
 
