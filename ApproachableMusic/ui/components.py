@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import (QFrame, QSlider, QDial, QCheckBox, QPushButton, QLabel)
-from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QRectF # Added pyqtSignal and QRectF
-from PyQt5.QtGui import QPainter, QColor, QPen, QBrush, QFont, QFontMetricsF # Added QFontMetricsF
-import numpy as np
+from PyQt5.QtCore import Qt, QPoint, pyqtSignal, QRectF, QPointF # Added pyqtSignal and QRectF
+from PyQt5.QtGui import QPainter, QColor, QPen, QBrush, QFont, QFontMetricsF, QPainterPath # Added QPainterPath
+import math
 
 from ui.theme import MATERIAL_COLORS, FONT_FAMILY # Import FONT_FAMILY
 
@@ -369,5 +369,405 @@ class ModernRotaryDial(QFrame):
                 painter.drawText(quality_rect, text_flags, info['quality_text'])
         else: # Neighbors - only Roman numeral
             painter.drawText(rect, text_flags, info['roman_display'])
-            
+
         painter.restore()
+
+
+class CircleOfFifthsWidget(QFrame):
+    """Interactive widget that presents root notes and modes on concentric rings."""
+
+    rootChanged = pyqtSignal(int)
+    modeChanged = pyqtSignal(int)
+
+    def __init__(self, notes, modes, parent=None):
+        super().__init__(parent)
+        self.notes = list(notes or [])
+        self.modes = list(modes or [])
+
+        self.root_order = self._build_root_order(self.notes)
+        self.mode_order = list(self.modes)
+
+        self._recalculate_steps()
+
+        self.root_index = 0 if self.root_order else -1
+        self.mode_index = 0 if self.mode_order else -1
+        self.root_rotation = 0.0
+        self.mode_rotation = 0.0
+        self._base_angle = -math.pi / 2
+
+        self._drag_active = None
+        self._drag_start_angle = 0.0
+        self._drag_start_rotation = 0.0
+        self._dragged = False
+
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setMinimumSize(260, 260)
+
+        if self.root_order and self.notes:
+            initial_circle_index = self.root_order.index(self.notes[0])
+            self._set_circle_index('root', initial_circle_index, emit=False)
+        if self.mode_order:
+            self._set_circle_index('mode', 0, emit=False)
+
+    def _recalculate_steps(self):
+        self._root_step = (2 * math.pi / len(self.root_order)) if self.root_order else 0.0
+        self._mode_step = (2 * math.pi / len(self.mode_order)) if self.mode_order else 0.0
+
+    def _build_root_order(self, notes):
+        if not notes:
+            return []
+        circle_order = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#', 'F']
+        ordered = [note for note in circle_order if note in notes]
+        for note in notes:
+            if note not in ordered:
+                ordered.append(note)
+        return ordered
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def _ring_metrics(self):
+        radius = min(self.width(), self.height()) / 2.0
+        margin = 14.0
+        outer_mode_radius = max(0.0, radius - margin)
+        mode_ring_width = max(32.0, outer_mode_radius * 0.22)
+        mode_inner_radius = max(0.0, outer_mode_radius - mode_ring_width)
+        separation = 12.0
+        root_outer_radius = max(0.0, mode_inner_radius - separation)
+        root_ring_width = max(32.0, root_outer_radius * 0.28)
+        root_inner_radius = max(0.0, root_outer_radius - root_ring_width)
+        center_radius = max(0.0, root_inner_radius - separation / 2.0)
+        return {
+            'mode_outer': outer_mode_radius,
+            'mode_inner': mode_inner_radius,
+            'root_outer': root_outer_radius,
+            'root_inner': root_inner_radius,
+            'center': center_radius
+        }
+
+    def _create_ring_segment_path(self, center, outer_radius, inner_radius, start_angle_deg, span_angle_deg):
+        outer_rect = QRectF(center.x() - outer_radius, center.y() - outer_radius,
+                             outer_radius * 2.0, outer_radius * 2.0)
+        inner_rect = QRectF(center.x() - inner_radius, center.y() - inner_radius,
+                             inner_radius * 2.0, inner_radius * 2.0)
+        path = QPainterPath()
+        start_rad = math.radians(start_angle_deg)
+        span_rad = math.radians(span_angle_deg)
+        start_point = self._point_on_circle(center, outer_radius, start_rad)
+        path.moveTo(start_point)
+        path.arcTo(outer_rect, start_angle_deg, span_angle_deg)
+        end_point = self._point_on_circle(center, inner_radius, start_rad + span_rad)
+        path.lineTo(end_point)
+        path.arcTo(inner_rect, start_angle_deg + span_angle_deg, -span_angle_deg)
+        path.closeSubpath()
+        return path
+
+    def _point_on_circle(self, center, radius, angle):
+        return QPointF(
+            center.x() + math.cos(angle) * radius,
+            center.y() + math.sin(angle) * radius
+        )
+
+    def _normalize_angle(self, angle):
+        while angle <= -math.pi:
+            angle += 2 * math.pi
+        while angle > math.pi:
+            angle -= 2 * math.pi
+        return angle
+
+    def _set_circle_index(self, ring, circle_index, emit=True):
+        if ring == 'root' and self.root_order:
+            total = len(self.root_order)
+            circle_index %= total
+            changed = circle_index != self.root_index
+            self.root_index = circle_index
+            self.root_rotation = -self.root_index * self._root_step if self._root_step else 0.0
+            self.update()
+            if emit and changed and self.notes:
+                self.rootChanged.emit(self.get_root_index())
+        elif ring == 'mode' and self.mode_order:
+            total = len(self.mode_order)
+            circle_index %= total
+            changed = circle_index != self.mode_index
+            self.mode_index = circle_index
+            self.mode_rotation = -self.mode_index * self._mode_step if self._mode_step else 0.0
+            self.update()
+            if emit and changed and self.modes:
+                self.modeChanged.emit(self.get_mode_index())
+
+    def _set_rotation_for_ring(self, ring, rotation, snap=False, emit=True):
+        rotation = self._normalize_angle(rotation)
+        if ring == 'root' and self.root_order:
+            self.root_rotation = rotation
+            index = 0
+            if self._root_step:
+                index = int(round((-self.root_rotation) / self._root_step)) % len(self.root_order)
+            changed = index != self.root_index
+            self.root_index = index
+            if snap:
+                self.root_rotation = -self.root_index * self._root_step if self._root_step else 0.0
+            self.update()
+            if emit and changed and self.notes:
+                self.rootChanged.emit(self.get_root_index())
+        elif ring == 'mode' and self.mode_order:
+            self.mode_rotation = rotation
+            index = 0
+            if self._mode_step:
+                index = int(round((-self.mode_rotation) / self._mode_step)) % len(self.mode_order)
+            changed = index != self.mode_index
+            self.mode_index = index
+            if snap:
+                self.mode_rotation = -self.mode_index * self._mode_step if self._mode_step else 0.0
+            self.update()
+            if emit and changed and self.modes:
+                self.modeChanged.emit(self.get_mode_index())
+
+    def get_root_index(self):
+        if not self.notes or self.root_index < 0 or not self.root_order:
+            return 0
+        note = self.root_order[self.root_index % len(self.root_order)]
+        return self.notes.index(note) if note in self.notes else 0
+
+    def get_mode_index(self):
+        if not self.modes or self.mode_index < 0 or not self.mode_order:
+            return 0
+        mode_name = self.mode_order[self.mode_index % len(self.mode_order)]
+        return self.modes.index(mode_name) if mode_name in self.modes else 0
+
+    def get_root_name(self):
+        if not self.root_order or self.root_index < 0:
+            return ''
+        return self.root_order[self.root_index % len(self.root_order)]
+
+    def get_mode_name(self):
+        if not self.mode_order or self.mode_index < 0:
+            return ''
+        return self.mode_order[self.mode_index % len(self.mode_order)]
+
+    def set_root_index(self, note_index, emit=True):
+        if not self.notes or not self.root_order:
+            return
+        note_index %= len(self.notes)
+        target_note = self.notes[note_index]
+        if target_note in self.root_order:
+            circle_index = self.root_order.index(target_note)
+            self._set_circle_index('root', circle_index, emit=emit)
+
+    def set_root_name(self, note_name, emit=True):
+        if note_name in self.notes:
+            self.set_root_index(self.notes.index(note_name), emit=emit)
+
+    def set_mode_index(self, mode_index, emit=True):
+        if not self.modes or not self.mode_order:
+            return
+        mode_index %= len(self.modes)
+        target_mode = self.modes[mode_index]
+        if target_mode in self.mode_order:
+            circle_index = self.mode_order.index(target_mode)
+            self._set_circle_index('mode', circle_index, emit=emit)
+
+    def set_mode_name(self, mode_name, emit=True):
+        if mode_name in self.modes:
+            self.set_mode_index(self.modes.index(mode_name), emit=emit)
+
+    def rotate_root(self, steps=1):
+        if self.root_order:
+            new_index = (self.root_index + steps) % len(self.root_order)
+            self._set_circle_index('root', new_index)
+
+    def rotate_mode(self, steps=1):
+        if self.mode_order:
+            new_index = (self.mode_index + steps) % len(self.mode_order)
+            self._set_circle_index('mode', new_index)
+
+    def _ring_at_position(self, pos):
+        metrics = self._ring_metrics()
+        center = self.rect().center()
+        distance = math.hypot(pos.x() - center.x(), pos.y() - center.y())
+        if metrics['root_inner'] <= distance <= metrics['root_outer']:
+            return 'root'
+        if metrics['mode_inner'] <= distance <= metrics['mode_outer']:
+            return 'mode'
+        return None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            ring = self._ring_at_position(event.pos())
+            if ring:
+                self.setFocus()
+                self._drag_active = ring
+                self._drag_start_angle = math.atan2(
+                    event.pos().y() - self.rect().center().y(),
+                    event.pos().x() - self.rect().center().x()
+                )
+                self._drag_start_rotation = self.root_rotation if ring == 'root' else self.mode_rotation
+                self._dragged = False
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_active:
+            center = self.rect().center()
+            current_angle = math.atan2(event.pos().y() - center.y(), event.pos().x() - center.x())
+            delta = self._normalize_angle(current_angle - self._drag_start_angle)
+            if abs(delta) > 0.005:
+                self._dragged = True
+            new_rotation = self._drag_start_rotation + delta
+            self._set_rotation_for_ring(self._drag_active, new_rotation, snap=False)
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if self._drag_active and event.button() == Qt.LeftButton:
+            center = self.rect().center()
+            angle = math.atan2(event.pos().y() - center.y(), event.pos().x() - center.x())
+            ring = self._drag_active
+            if not self._dragged:
+                index = self._index_from_angle(ring, angle)
+                self._set_circle_index(ring, index)
+            else:
+                current_rotation = self.root_rotation if ring == 'root' else self.mode_rotation
+                self._set_rotation_for_ring(ring, current_rotation, snap=True)
+            self._drag_active = None
+            self._dragged = False
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def _index_from_angle(self, ring, angle):
+        if ring == 'root' and self.root_order and self._root_step:
+            relative = self._normalize_angle(angle - self._base_angle - self.root_rotation)
+            return int(round(relative / self._root_step)) % len(self.root_order)
+        if ring == 'mode' and self.mode_order and self._mode_step:
+            relative = self._normalize_angle(angle - self._base_angle - self.mode_rotation)
+            return int(round(relative / self._mode_step)) % len(self.mode_order)
+        return 0
+
+    def keyPressEvent(self, event):
+        handled = False
+        if event.key() in (Qt.Key_Left, Qt.Key_A):
+            self.rotate_root(-1)
+            handled = True
+        elif event.key() in (Qt.Key_Right, Qt.Key_D):
+            self.rotate_root(1)
+            handled = True
+        elif event.key() in (Qt.Key_Up, Qt.Key_W):
+            self.rotate_mode(-1)
+            handled = True
+        elif event.key() in (Qt.Key_Down, Qt.Key_S):
+            self.rotate_mode(1)
+            handled = True
+
+        if handled:
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        center = self.rect().center()
+        metrics = self._ring_metrics()
+
+        surface_color = QColor(MATERIAL_COLORS.get('surface', '#424242'))
+        background_color = QColor(MATERIAL_COLORS.get('background', '#303030'))
+        divider_color = QColor(MATERIAL_COLORS.get('divider', '#1F1F1F'))
+        primary_color = QColor(MATERIAL_COLORS.get('primary', '#1976D2'))
+        accent_color = QColor(MATERIAL_COLORS.get('accent', '#FF4081'))
+        text_primary = QColor(MATERIAL_COLORS.get('text_primary', '#FFFFFF'))
+        text_secondary = QColor(MATERIAL_COLORS.get('text_secondary', '#B0BEC5'))
+
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(background_color)
+        painter.drawEllipse(center, metrics['mode_outer'], metrics['mode_outer'])
+
+        mode_base = surface_color
+        root_base = surface_color.darker(115)
+
+        self._draw_ring(
+            painter,
+            labels=self.mode_order,
+            rotation=self.mode_rotation,
+            inner_radius=metrics['mode_inner'],
+            outer_radius=metrics['mode_outer'],
+            selected_index=self.mode_index,
+            highlight_color=accent_color,
+            base_color=mode_base,
+            text_color=text_secondary,
+            highlight_text_color=text_primary,
+            divider_color=divider_color,
+            font_ratio=0.32,
+            bold=False
+        )
+
+        self._draw_ring(
+            painter,
+            labels=self.root_order,
+            rotation=self.root_rotation,
+            inner_radius=metrics['root_inner'],
+            outer_radius=metrics['root_outer'],
+            selected_index=self.root_index,
+            highlight_color=primary_color,
+            base_color=root_base,
+            text_color=text_secondary,
+            highlight_text_color=text_primary,
+            divider_color=divider_color,
+            font_ratio=0.42,
+            bold=True
+        )
+
+        painter.setBrush(background_color)
+        painter.drawEllipse(center, metrics['center'], metrics['center'])
+
+        painter.end()
+
+    def _draw_ring(self, painter, labels, rotation, inner_radius, outer_radius,
+                   selected_index, highlight_color, base_color, text_color,
+                   highlight_text_color, divider_color, font_ratio, bold):
+        if not labels or outer_radius <= inner_radius:
+            return
+
+        step = (2 * math.pi) / len(labels)
+        center = self.rect().center()
+        ring_pen = QPen(divider_color)
+        ring_pen.setWidthF(max(1.0, (outer_radius - inner_radius) * 0.05))
+
+        for i, label in enumerate(labels):
+            mid_angle = self._base_angle + rotation + i * step
+            start_angle = mid_angle - step / 2.0
+            start_deg = math.degrees(start_angle)
+            span_deg = math.degrees(step)
+
+            path = self._create_ring_segment_path(center, outer_radius, inner_radius, start_deg, span_deg)
+
+            painter.save()
+            painter.setPen(ring_pen)
+            painter.setBrush(QBrush(highlight_color if i == selected_index else base_color))
+            painter.drawPath(path)
+            painter.restore()
+
+            text_radius = (outer_radius + inner_radius) / 2.0
+            text_x = center.x() + math.cos(mid_angle) * text_radius
+            text_y = center.y() + math.sin(mid_angle) * text_radius
+
+            font = QFont(FONT_FAMILY, 10)
+            font.setBold(bold)
+            font.setPointSizeF(max(8.0, (outer_radius - inner_radius) * font_ratio))
+
+            painter.save()
+            painter.setFont(font)
+            painter.setPen(highlight_text_color if i == selected_index else text_color)
+            metrics = QFontMetricsF(font)
+            text_rect = metrics.boundingRect(label)
+            label_rect = QRectF(
+                text_x - text_rect.width() / 2.0,
+                text_y - text_rect.height() / 2.0,
+                text_rect.width(),
+                text_rect.height()
+            )
+            painter.drawText(label_rect, Qt.AlignCenter, label)
+            painter.restore()
